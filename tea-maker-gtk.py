@@ -1,11 +1,10 @@
 #!/usr/bin/python3
 
 from shutil import copyfile, rmtree, move
-from subprocess import Popen, PIPE
+# from subprocess import Popen, PIPE
 from apt.progress.base import AcquireProgress
 from gi.repository import Gtk, GLib, GObject
 import threading
-
 import apt
 import apt_pkg
 import os
@@ -91,63 +90,60 @@ class TeaMaker:
             self.show_message('Empty Status File', 'Choose a status file')
         else:
             status_file = self.file_chooser.get_filename()
-            m = Popen([
-                '/usr/bin/apt-get --print-uris -y -o dir::state::status=\'' + status_file + '\' -o dir::cache::archives=\"$HOME/.tea-maker\" install ' + pkg_name],
-                stdout=PIPE, stderr=PIPE, universal_newlines=True, start_new_session=True,
-                shell=True).communicate()[0]
-            # print(m)
-            if str(m).count('.deb') / 2:
-                Popen(['bash', './tea-maker-confirm.sh', status_file, pkg_name],
-                      stdout=PIPE, stderr=PIPE,
-                      universal_newlines=True,
-                      start_new_session=True,
-                      shell=False).communicate()
-
-                message = open('/tmp/TEA/tree', mode='r')
-                m = message.read().splitlines()
-                message.close()
-                list_view = []
-                for line in m:
-                    list_view.append(line.split())
-                # print(list_view)
+            apt_pkg.config.set("Dir:State::status", status_file)
+            cache = apt.Cache()
+            try:
+                cache[pkg_name].mark_install()
                 confirm_list = Gtk.ListStore(str, str)
-                for item in list_view:
-                    confirm_list.append(list(item))
+                download_size = 0
+                download_items = 0
+                for package in cache.get_changes():
+                    if os.path.exists('/var/cache/apt/archives/' + package.candidate.filename.split('/')[-1]):
+                        downloaded = "Yes"
+                    else:
+                        downloaded = "No"
+                        download_size += package.candidate.size
+                        download_items += 1
 
-                confirm_treeview = Gtk.TreeView()
-                confirm_treeview.set_model(confirm_list)
-                # for i, column_title in enumerate(["Package", "Cache"]):
-                renderer = Gtk.CellRendererText()
-                column = Gtk.TreeViewColumn("Package", renderer, text=0)
-                column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
-                column.set_resizable(True)
-                column.set_min_width(300)
-                confirm_treeview.append_column(column)
+                    confirm_list.append([package.fullname, downloaded])
 
-                renderer = Gtk.CellRendererText()
-                column = Gtk.TreeViewColumn("Cache", renderer, text=1)
-                column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
-                column.set_resizable(True)
-                column.set_min_width(50)
-                confirm_treeview.append_column(column)
-                self.scrolled_window.add(confirm_treeview)
+                    confirm_treeview = Gtk.TreeView()
+                    confirm_treeview.set_model(confirm_list)
+                    renderer = Gtk.CellRendererText()
+                    column = Gtk.TreeViewColumn("Package", renderer, text=0)
+                    column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
+                    column.set_resizable(True)
+                    column.set_min_width(300)
+                    confirm_treeview.append_column(column)
 
-                message = open('/tmp/TEA/show', mode='r')
-                m = message.read()
-                message.close()
-                self.confirm_summary = self.builder.get_object('confirm_summary')
-                self.confirm_summary.set_text(m)
+                    renderer = Gtk.CellRendererText()
+                    column = Gtk.TreeViewColumn("Cache", renderer, text=1)
+                    column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
+                    column.set_resizable(True)
+                    column.set_min_width(50)
+                    confirm_treeview.append_column(column)
 
-                self.confirm_dialog = self.builder.get_object('confirm_dialog')
-                self.confirm_dialog.show_all()
-                self.confirm_dialog.connect('delete-event', self.on_confirmation_destroy)
+                    self.scrolled_window.add(confirm_treeview)
 
-                self.confirm_cancel_button = self.builder.get_object('confirm_cancel')
-                self.confirm_cancel_button.connect('clicked', self.on_confirmation_destroy)
-                self.confirm_ok_button = self.builder.get_object('confirm_ok')
-                self.confirm_ok_button.connect('clicked', self.on_confirmation_confirmed)
-            else:
-                self.show_message('Package(s) not found', 'We can\'t find the package')
+                    if download_items > 0:
+                        summary = str(download_items) + " File(s) not available in APT cache\n" + \
+                                  "Need to download " + apt_pkg.size_to_str(download_size) + "B"
+                    else:
+                        summary = "All files Available in APT Cache\nNo need to download packages"
+
+                    self.confirm_summary = self.builder.get_object('confirm_summary')
+                    self.confirm_summary.set_text(summary)
+
+                    self.confirm_dialog = self.builder.get_object('confirm_dialog')
+                    self.confirm_dialog.show_all()
+                    self.confirm_dialog.connect('delete-event', self.on_confirmation_destroy)
+
+                    self.confirm_cancel_button = self.builder.get_object('confirm_cancel')
+                    self.confirm_cancel_button.connect('clicked', self.on_confirmation_destroy)
+                    self.confirm_ok_button = self.builder.get_object('confirm_ok')
+                    self.confirm_ok_button.connect('clicked', self.on_confirmation_confirmed)
+            except KeyError:
+                self.show_message('Package(s) not found', 'We can\'t find the package\nor it was already installed')
 
     def show_message(self, primary, secondary):
         self.message_dialog = Gtk.MessageDialog(None,
@@ -211,12 +207,12 @@ class TeaMaker:
             self.hide_progress_window()
             self.on_confirmation_destroy()
             for file in file_names:
-                    copyfile('/var/cache/apt/archives/' + file, '/tmp/tea/workspace/archives/' + file)
+                copyfile('/var/cache/apt/archives/' + file, '/tmp/tea/workspace/archives/' + file)
             # compress, add description
             tar_dest = '/tmp/tea/workspace/' + self.package_entry.get_text() + '_' + \
                        cache[self.package_entry.get_text()].candidate.version + '.tea'
             tar = tarfile.open(tar_dest, 'w:gz')
-            o = open('/tmp/tea/workspace/archives/keterangan_tea.txt', 'w', newline='\r\n')
+            o = open('/tmp/tea/workspace/archives/keterangan.txt', 'w', newline='\r\n')
             now = datetime.now()
             keterangan = 'this package contains ' + self.package_entry.get_text() + ' version ' + \
                          cache[self.package_entry.get_text()].candidate.version + ' and it\'s dependencies\n' + \
@@ -225,6 +221,14 @@ class TeaMaker:
                          'timestamp: ' + str(now.day) + '-' + str(now.month) + '-' + str(now.year) + \
                          ' ' + str(now.hour) + ':' + str(now.minute) + ':' + str(now.second)
 
+            o.write(keterangan)
+            o.close()
+            o = open('/tmp/tea/workspace/archives/keterangan_tea.txt', 'w', newline='\r\n')
+            keterangan = "# File tea #\nSatu file yang memuat file .deb beserta dependensinya."+\
+                         "\n\nDibuat untuk aplikasi & profil :\n\n\t\""+ self.package_entry.get_text() +"\""+\
+                         "\n\t(versi -"+cache[self.package_entry.get_text()].candidate.version+"-)"+\
+                         "\n\nstr(self.file_chooser.get_filename().split('/')[-1])\n\nDibuat pada "+ str(now.day) + '-' + str(now.month) + '-' + str(now.year) + \
+                         ' ' + str(now.hour) + ':' + str(now.minute) + ':' + str(now.second)
             o.write(keterangan)
             o.close()
             # self.progress_window.show_all()
@@ -289,8 +293,6 @@ class TeaMaker:
         else:
             proceed()
 
-
-
     def hide_progress_window(self, *args):
         # try:
         #     self.progress_window.remove(self.progress_window.get_children()[0])
@@ -305,7 +307,6 @@ if __name__ == "__main__":
     user = os.path.expanduser('~').split('/')[-1]
     GObject.threads_init()
     if os.getuid() is 0:
-        print(user)
         TeaMaker()
         Gtk.main()
     else:
