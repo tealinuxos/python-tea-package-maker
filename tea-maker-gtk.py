@@ -104,44 +104,43 @@ class TeaMaker:
                         downloaded = "No"
                         download_size += package.candidate.size
                         download_items += 1
-
                     confirm_list.append([package.fullname, downloaded])
 
-                    confirm_treeview = Gtk.TreeView()
-                    confirm_treeview.set_model(confirm_list)
-                    renderer = Gtk.CellRendererText()
-                    column = Gtk.TreeViewColumn("Package", renderer, text=0)
-                    column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
-                    column.set_resizable(True)
-                    column.set_min_width(300)
-                    confirm_treeview.append_column(column)
+                confirm_treeview = Gtk.TreeView()
+                confirm_treeview.set_model(confirm_list)
+                renderer = Gtk.CellRendererText()
+                column = Gtk.TreeViewColumn("Package", renderer, text=0)
+                column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
+                column.set_resizable(True)
+                column.set_min_width(300)
+                confirm_treeview.append_column(column)
 
-                    renderer = Gtk.CellRendererText()
-                    column = Gtk.TreeViewColumn("Cache", renderer, text=1)
-                    column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
-                    column.set_resizable(True)
-                    column.set_min_width(50)
-                    confirm_treeview.append_column(column)
+                renderer = Gtk.CellRendererText()
+                column = Gtk.TreeViewColumn("Cache", renderer, text=1)
+                column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
+                column.set_resizable(True)
+                column.set_min_width(50)
+                confirm_treeview.append_column(column)
 
-                    self.scrolled_window.add(confirm_treeview)
+                self.scrolled_window.add(confirm_treeview)
 
-                    if download_items > 0:
-                        summary = str(download_items) + " File(s) not available in APT cache\n" + \
-                                  "Need to download " + apt_pkg.size_to_str(download_size) + "B"
-                    else:
-                        summary = "All files Available in APT Cache\nNo need to download packages"
+                if download_items > 0:
+                    summary = str(download_items) + " File(s) not available in APT cache\n" + \
+                              "Need to download " + apt_pkg.size_to_str(download_size) + "B"
+                else:
+                    summary = "All files Available in APT Cache\nNo need to download packages"
 
-                    self.confirm_summary = self.builder.get_object('confirm_summary')
-                    self.confirm_summary.set_text(summary)
+                self.confirm_summary = self.builder.get_object('confirm_summary')
+                self.confirm_summary.set_text(summary)
 
-                    self.confirm_dialog = self.builder.get_object('confirm_dialog')
-                    self.confirm_dialog.show_all()
-                    self.confirm_dialog.connect('delete-event', self.on_confirmation_destroy)
+                self.confirm_dialog = self.builder.get_object('confirm_dialog')
+                self.confirm_dialog.show_all()
+                self.confirm_dialog.connect('delete-event', self.on_confirmation_destroy)
 
-                    self.confirm_cancel_button = self.builder.get_object('confirm_cancel')
-                    self.confirm_cancel_button.connect('clicked', self.on_confirmation_destroy)
-                    self.confirm_ok_button = self.builder.get_object('confirm_ok')
-                    self.confirm_ok_button.connect('clicked', self.on_confirmation_confirmed)
+                self.confirm_cancel_button = self.builder.get_object('confirm_cancel')
+                self.confirm_cancel_button.connect('clicked', self.on_confirmation_destroy)
+                self.confirm_ok_button = self.builder.get_object('confirm_ok')
+                self.confirm_ok_button.connect('clicked', self.on_confirmation_confirmed)
             except KeyError:
                 self.show_message('Package(s) not found', 'We can\'t find the package\nor it was already installed')
 
@@ -226,8 +225,8 @@ class TeaMaker:
             o = open('/tmp/tea/workspace/archives/keterangan_tea.txt', 'w', newline='\r\n')
             keterangan = "# File tea #\nSatu file yang memuat file .deb beserta dependensinya."+\
                          "\n\nDibuat untuk aplikasi & profil :\n\n\t\""+ self.package_entry.get_text() +"\""+\
-                         "\n\t(versi -"+cache[self.package_entry.get_text()].candidate.version+"-)"+\
-                         "\n\nstr(self.file_chooser.get_filename().split('/')[-1])\n\nDibuat pada "+ str(now.day) + '-' + str(now.month) + '-' + str(now.year) + \
+                         "\n\t(versi -"+cache[self.package_entry.get_text()].candidate.version+"-)\n\n"+\
+                         str(self.file_chooser.get_filename().split('/')[-1])+"\n\nDibuat pada "+ str(now.day) + '-' + str(now.month) + '-' + str(now.year) + \
                          ' ' + str(now.hour) + ':' + str(now.minute) + ':' + str(now.second)
             o.write(keterangan)
             o.close()
@@ -250,9 +249,10 @@ class TeaMaker:
             self.progress_window.destroy()
 
         class Fetch(AcquireProgress):
-            def __init__(self, outer):
+            def __init__(self, progress, label):
                 AcquireProgress.__init__(self)
-                self.outer = outer
+                self.progress_bar = progress
+                self.label = label
                 # self.outer.progress_window.show_all()
 
             def pulse(self, owner):
@@ -260,11 +260,11 @@ class TeaMaker:
                 # print(dir(owner.items[0]))
                 # print(owner.items[0].destfile)
                 print(self.current_bytes / self.total_bytes)
-                self.outer.progress_bar.set_fraction(self.current_bytes / self.total_bytes)
+                GLib.idle_add(self.progress_bar.set_fraction, self.current_bytes / self.total_bytes)
                 text = 'Downloading ' + apt_pkg.size_to_str(self.current_bytes) + 'B of ' + apt_pkg.size_to_str(
                     self.total_bytes) + 'B' + \
-                       '\n' + apt_pkg.size_to_str(self.current_cps) + 'B/s ) '
-                self.outer.label.set_text(text)
+                    '\n' + apt_pkg.size_to_str(self.current_cps) + 'B/s ) '
+                GLib.idle_add(self.label.set_text, text)
 
             def stop(self):
                 # label.set_text('Download Stopped')
@@ -279,17 +279,47 @@ class TeaMaker:
 
                 else:
                     GLib.idle_add(proceed)
-
+                
                 print("stopped")
 
             def fail(self, item):
                 package_error.append(item.shortdesc)
 
+        class Thread(threading.Thread):
+            # http://stackoverflow.com/questions/2829329/catch-a-threads-exception-in-the-caller-thread-in-python
+            def __init__(self, fetch_progress, outer):
+                threading.Thread.__init__(self)
+                self.fetch_progress = fetch_progress
+                self.outer = outer
+
+            def run(self):
+                try:
+                    cache.fetch_archives(self.fetch_progress)
+                except apt.cache.FetchFailedException:
+                    GLib.idle_add(self.outer.hide_progress_window)
+                    # event = threading.Event()
+                    # GLib.idle_add(self.outer.show_message,
+                    #               "Download Error",
+                    #               "Couldn't download packages\nCheck your internet connection")
+                    # event.wait()
+                    def message():
+                        message_dialog = Gtk.MessageDialog(None,
+                                                    Gtk.DialogFlags.MODAL,
+                                                    Gtk.MessageType.INFO,
+                                                    Gtk.ButtonsType.OK, "Error")
+
+                        message_dialog.format_secondary_text("Error 2")
+                        message_dialog.run()
+                        message_dialog.destroy()
+                    # event = threading.Event()
+                    GLib.idle_add(message)
+                    # event.wait()
+
+
         if cache.required_download != 0:
-            FetchProgress = Fetch(self)
-            t = threading.Thread(target=cache.fetch_archives, args=(FetchProgress,))
-            t.daemon = True
-            t.start()
+            progress = Fetch(self.progress_bar, self.label)
+            apt_thread = Thread(progress, self)
+            apt_thread.start()
         else:
             proceed()
 
