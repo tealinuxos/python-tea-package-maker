@@ -75,7 +75,7 @@ class TeaMaker:
         self.progress_window.connect('delete-event', self.hide_progress_window)
 
     def on_confirmation_destroy(self, *args):
-        self.confirm_dialog.hide()
+        # self.confirm_dialog.hide()
         try:
             self.scrolled_window.remove(self.scrolled_window.get_children()[0])
         except IndexError:
@@ -122,7 +122,7 @@ class TeaMaker:
                 column.set_min_width(50)
                 confirm_treeview.append_column(column)
 
-                self.scrolled_window.add(confirm_treeview)
+                # self.scrolled_window.add(confirm_treeview)
 
                 if download_items > 0:
                     summary = str(download_items) + " File(s) not available in APT cache\n" + \
@@ -130,17 +130,45 @@ class TeaMaker:
                 else:
                     summary = "All files Available in APT Cache\nNo need to download packages"
 
-                self.confirm_summary = self.builder.get_object('confirm_summary')
-                self.confirm_summary.set_text(summary)
+                # self.confirm_summary = self.builder.get_object('confirm_summary')
+                # self.confirm_summary.set_text(summary)
 
-                self.confirm_dialog = self.builder.get_object('confirm_dialog')
-                self.confirm_dialog.show_all()
-                self.confirm_dialog.connect('delete-event', self.on_confirmation_destroy)
+                confirm_dialog = Gtk.Window()
+                box = Gtk.Box()
+                box.set_orientation(Gtk.Orientation.VERTICAL)
+                scroll = Gtk.ScrolledWindow()
+                scroll.add(confirm_treeview)
+                box.add(scroll)
+                label = Gtk.Label()
+                label.set_text(summary)
+                box.add(label)
+                box2 = Gtk.Box()
+                box2.set_orientation(Gtk.Orientation.HORIZONTAL)
+                ok = Gtk.Button()
+                ok.set_label('ok')
+                ca=Gtk.Button()
+                ca.set_label('cancl')
+                def oke(*args):
+                    self.on_confirmation_confirmed(confirm_dialog)
+                def cancel(*args):
+                    confirm_dialog.hide()
+                    return False
+                ok.connect("clicked", oke)
+                ca.connect('clicked', cancel)
+                box2.add(ok)
+                box2.add(ca)
+                box.add(box2)
+                confirm_dialog.add(box)
+                confirm_dialog.show_all()
 
-                self.confirm_cancel_button = self.builder.get_object('confirm_cancel')
-                self.confirm_cancel_button.connect('clicked', self.on_confirmation_destroy)
-                self.confirm_ok_button = self.builder.get_object('confirm_ok')
-                self.confirm_ok_button.connect('clicked', self.on_confirmation_confirmed)
+                # self.confirm_dialog = self.builder.get_object('confirm_dialog')
+                # self.confirm_dialog.show_all()
+                # self.confirm_dialog.connect('delete-event', self.on_confirmation_destroy)
+                #
+                # self.confirm_cancel_button = self.builder.get_object('confirm_cancel')
+                # self.confirm_cancel_button.connect('clicked', self.on_confirmation_destroy)
+                # self.confirm_ok_button = self.builder.get_object('confirm_ok')
+                # self.confirm_ok_button.connect('clicked', self.on_confirmation_confirmed)
             except KeyError:
                 self.show_message('Package(s) not found', 'We can\'t find the package\nor it was already installed')
 
@@ -182,8 +210,30 @@ class TeaMaker:
         self.about_dialog.hide()
         return True
 
-    def on_confirmation_confirmed(self, *args):
-        self.progress_window.show_all()
+    def on_confirmation_confirmed(self, conf, *args):
+        # self.progress_window.show_all()
+        progress_window = Gtk.Window()
+        vbox = Gtk.VBox(spacing=6)
+        vbox.set_margin_bottom(18)
+        vbox.set_margin_top(18)
+        vbox.set_margin_left(18)
+        vbox.set_margin_right(18)
+
+        progress_bar = Gtk.ProgressBar()
+        progress_bar.set_show_text(True)
+        progress_bar.set_fraction(0)
+        progress_bar.set_pulse_step(0.1)
+        vbox.pack_start(progress_bar, True, True, 0)
+
+        label_ = Gtk.Label()
+        label_.set_text('Downloading...')
+        label_.set_halign(Gtk.Align.START)
+        vbox.pack_start(label_, True, True, 0)
+
+        progress_window.add(vbox)
+        progress_window.show_all()
+        def hide_progress():
+            progress_window.hide()
 
         if os.path.exists('/tmp/tea/'):
             rmtree('/tmp/tea/')
@@ -203,8 +253,9 @@ class TeaMaker:
         done = False
 
         def proceed():
-            self.hide_progress_window()
+            hide_progress()
             self.on_confirmation_destroy()
+            conf.hide()
             for file in file_names:
                 copyfile('/var/cache/apt/archives/' + file, '/tmp/tea/workspace/archives/' + file)
             # compress, add description
@@ -249,10 +300,8 @@ class TeaMaker:
             self.progress_window.destroy()
 
         class Fetch(AcquireProgress):
-            def __init__(self, progress, label):
+            def __init__(self):
                 AcquireProgress.__init__(self)
-                self.progress_bar = progress
-                self.label = label
                 # self.outer.progress_window.show_all()
 
             def pulse(self, owner):
@@ -260,11 +309,11 @@ class TeaMaker:
                 # print(dir(owner.items[0]))
                 # print(owner.items[0].destfile)
                 print(self.current_bytes / self.total_bytes)
-                GLib.idle_add(self.progress_bar.set_fraction, self.current_bytes / self.total_bytes)
+                GLib.idle_add(progress_bar.set_fraction, self.current_bytes / self.total_bytes)
                 text = 'Downloading ' + apt_pkg.size_to_str(self.current_bytes) + 'B of ' + apt_pkg.size_to_str(
                     self.total_bytes) + 'B' + \
                     '\n' + apt_pkg.size_to_str(self.current_cps) + 'B/s ) '
-                GLib.idle_add(self.label.set_text, text)
+                GLib.idle_add(label_.set_text, text)
 
             def stop(self):
                 # label.set_text('Download Stopped')
@@ -279,24 +328,26 @@ class TeaMaker:
 
                 else:
                     GLib.idle_add(proceed)
-                
+
                 print("stopped")
 
             def fail(self, item):
                 package_error.append(item.shortdesc)
 
+            def __del__(self):
+                print("fetch deleted")
+
         class Thread(threading.Thread):
             # http://stackoverflow.com/questions/2829329/catch-a-threads-exception-in-the-caller-thread-in-python
-            def __init__(self, fetch_progress, outer):
+            def __init__(self, fetch_progress):
                 threading.Thread.__init__(self)
                 self.fetch_progress = fetch_progress
-                self.outer = outer
 
             def run(self):
                 try:
                     cache.fetch_archives(self.fetch_progress)
                 except apt.cache.FetchFailedException:
-                    GLib.idle_add(self.outer.hide_progress_window)
+                    GLib.idle_add(hide_progress)
                     # event = threading.Event()
                     # GLib.idle_add(self.outer.show_message,
                     #               "Download Error",
@@ -315,10 +366,12 @@ class TeaMaker:
                     GLib.idle_add(message)
                     # event.wait()
 
+            def __del__(self):
+                print("thread deleted")
 
         if cache.required_download != 0:
-            progress = Fetch(self.progress_bar, self.label)
-            apt_thread = Thread(progress, self)
+            progress = Fetch()
+            apt_thread = Thread(progress)
             apt_thread.start()
         else:
             proceed()
