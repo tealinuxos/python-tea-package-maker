@@ -8,11 +8,11 @@ Currently developed for [TeaLinuxOS](http://tealinuxos.org)
 
 ## how to use:
 You will need a 'status' file. It can be obtained from /var/lib/dpkg/status.
-Tt can be your own OS or your friend's OS if you want to provide offline installer for him/her.
+It can be your own OS or your friend's OS if you want to provide offline installer for him/her.
 
 Open the app, select the 'status' file, input a valid package name, click 'Build'.
 
-# Development
-## To Do
-add cancel button
-something better for output file
+## Development
+### To Do
+* add cancel button
+* something better for output file
