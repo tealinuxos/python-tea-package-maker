@@ -14,5 +14,4 @@ Open the app, select the 'status' file, input a valid package name, click 'Build
 
 ## Development
 ### To Do
-* add cancel button
-* something better for output file
+* add help content
