@@ -1,0 +1,10 @@
+Package: tea-package-maker
+Version: 0.9
+Architecture: all
+Depends: python3-apt (>=0.3.9), python-apt (>=0.3.9)
+Priority: optional
+Section: python
+Maintainer: nurul irfan <irfanlongstride@gmail.com>
+Description: create offline ubuntu package installer
+ this software creates .tea package that can be installed using Tea Installer
+

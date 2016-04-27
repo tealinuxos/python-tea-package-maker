@@ -1,18 +1,18 @@
 #!/usr/bin/python3
 
-from shutil import copyfile, rmtree, move
+from shutil import copyfile, rmtree
 from apt.progress.base import AcquireProgress
 from gi.repository import Gtk, GLib, GObject
 import threading
 import apt
 import apt_pkg
-import os
+import os, sys
 import tarfile
 import gc
 from datetime import datetime
 
-ui_file = '/home/mnirfan/Project/python-tea-package/tea-maker.ui'
-
+ui_file = '/usr/share/tea-package/maker/tea-maker.ui'
+# ui_file = 'tea-maker.ui'
 
 class TeaMaker:
     def __init__(self):
@@ -21,7 +21,8 @@ class TeaMaker:
 
         self.main_window = self.builder.get_object('main_window')
         self.main_window.connect('delete-event', Gtk.main_quit)
-        self.main_window.set_title("Tea Package Maker v2")
+        self.main_window.set_title("Tea Package Maker")
+        self.main_window.set_icon_name('tea-installer-gtk')
         self.main_window.show()
 
         self.package_entry = self.builder.get_object('package_entry')
@@ -34,22 +35,13 @@ class TeaMaker:
 
         self.help = self.builder.get_object('help')
         self.help.connect('clicked', self.on_help_clicked)
-        # self.about_dialog = self.builder.get_object('about_dialog')
-
-        # self.message_dialog = None
-        # self.confirm_dialog = None
-        # self.confirm_detail = None
-        # self.confirm_list = None
-        # self.confirm_summary = None
-        # self.confirm_treeview = Gtk.TreeView()
-        # self.scrolled_window = self.builder.get_object('scrolledwindow')
 
         self.file_chooser = self.builder.get_object('file_chooser')
-        self.file_chooser.set_current_folder('/usr/share/TEA/profiles/')
+        self.file_chooser.set_current_folder('/var/lib/dpkg/')
 
-        self.start()
+        # self.start()
 
-        self.progress_window = Gtk.Window()
+        self.progress_window = Gtk.Window(title='Downloading')
         self.progress_window.set_size_request(400, 0)
         self.progress_window.set_modal(True)
         self.progress_window.set_transient_for(self.main_window)
@@ -80,8 +72,9 @@ class TeaMaker:
 
         self.progress_window.connect('delete-event', self.hide_progress_window)
 
+    # prepare the auto completion
     def start(self):
-        cache = apt.Cache()
+        c = apt.Cache()
         list = Gtk.ListStore(str)
         self.package_entry.set_sensitive(False)
         self.package_entry.set_text('Loading...')
@@ -90,10 +83,10 @@ class TeaMaker:
         self.help.set_sensitive(False)
         self.file_chooser.set_sensitive(False)
         i = 0
-        for item in cache:
+        for item in c:
             i += 1
             list.append([item.name])
-            self.package_entry.set_progress_fraction(i/len(cache))
+            self.package_entry.set_progress_fraction(i/len(c))
             while Gtk.events_pending():
                 Gtk.main_iteration()
         self.package_entry.set_text('')
@@ -121,9 +114,12 @@ class TeaMaker:
             self.show_message('Empty Status File', 'Choose a status file')
         else:
             status_file = self.file_chooser.get_filename()
-            apt_pkg.config.set("Dir:State::status", status_file)
+            print(status_file)
+            print(pkg_name)
+            apt_pkg.config.set("Dir::State::status", str(status_file))
             cache = apt.Cache()
             try:
+                print(cache[pkg_name].is_installed)
                 if cache[pkg_name].is_installed:
                     self.show_message('Package already installed',
                                       pkg_name+' is already installed in your status file')
@@ -133,7 +129,12 @@ class TeaMaker:
                     download_size = 0
                     download_items = 0
                     for package in cache.get_changes():
-                        if os.path.exists('/var/cache/apt/archives/' + package.name + '_' + package.candidate.version.replace(':', '%3a') + '_' + package.candidate.architecture + '.deb'):
+                        print(package.candidate.uri.split('/')[-1].replace(':', '%3a'))
+                        print(package.shortname + '_' + package.candidate.version.replace(':', '%3a') + '_' + package.candidate.architecture + '.deb')
+                        print(package.candidate.version)
+                        if os.path.exists('/var/cache/apt/archives/' + package.shortname + '_' + package.candidate.version.replace(':', '%3a') + '_' + package.candidate.architecture + '.deb')\
+                                or os.path.exists('/var/cache/apt/archives/' + package.candidate.uri.split('/')[-1]):
+                        # if os.path.exists('/var/cache/apt/archives/' + package.candidate.uri.split('/')[-1].replace(':', '%3a')):
                             downloaded = "Yes"
                         else:
                             downloaded = "No"
@@ -157,18 +158,14 @@ class TeaMaker:
                     column.set_min_width(50)
                     confirm_treeview.append_column(column)
 
-                    # self.scrolled_window.add(confirm_treeview)
-
                     if download_items > 0:
                         summary = str(download_items) + " File(s) not available in APT cache\n" + \
                                   "Need to download " + apt_pkg.size_to_str(download_size) + "B"
                     else:
                         summary = "All files Available in APT Cache\nNo need to download packages"
 
-                    # self.confirm_summary = self.builder.get_object('confirm_summary')
-                    # self.confirm_summary.set_text(summary)
-
                     confirm_dialog = Gtk.Window(title="Confirmation")
+                    confirm_dialog.set_skip_taskbar_hint(True)
                     confirm_dialog.set_transient_for(self.main_window)
                     confirm_dialog.set_modal(self.main_window)
                     confirm_dialog.set_default_size(400, 300)
@@ -184,13 +181,15 @@ class TeaMaker:
                     label = Gtk.Label()
                     label.set_halign(Gtk.Align.START)
                     label.set_text(summary)
-                    box.pack_start(label, 1, 1, 0)
+                    box.pack_start(label, 0, 1, 0)
                     box2 = Gtk.Box()
                     box2.set_orientation(Gtk.Orientation.HORIZONTAL)
-                    ok_btn = Gtk.Button().new_from_stock(Gtk.STOCK_OK)
+                    ok_btn = Gtk.Button(stock=Gtk.STOCK_OK)
+                    ok_btn.set_size_request(90, 30)
                     ok_btn.can_focus = True
                     ok_btn.has_focus = True
-                    cancel_btn=Gtk.Button().new_from_stock(Gtk.STOCK_CANCEL)
+                    cancel_btn=Gtk.Button(stock=Gtk.STOCK_CANCEL)
+                    cancel_btn.set_size_request(90, 30)
 
                     def oke(*args):
                         self.on_confirmation_confirmed(confirm_dialog)
@@ -201,20 +200,11 @@ class TeaMaker:
 
                     ok_btn.connect("clicked", oke)
                     cancel_btn.connect('clicked', cancel)
-                    box2.pack_end(ok_btn, False, 0, 6)
-                    box2.pack_end(cancel_btn, False, 0, 0)
+                    box2.pack_end(ok_btn, False, 1, 6)
+                    box2.pack_end(cancel_btn, False, 1, 0)
                     box.pack_start(box2, 0, 0, 0)
                     confirm_dialog.add(box)
                     confirm_dialog.show_all()
-
-                # self.confirm_dialog = self.builder.get_object('confirm_dialog')
-                # self.confirm_dialog.show_all()
-                # self.confirm_dialog.connect('delete-event', self.on_confirmation_destroy)
-                #
-                # self.confirm_cancel_button = self.builder.get_object('confirm_cancel')
-                # self.confirm_cancel_button.connect('clicked', self.on_confirmation_destroy)
-                # self.confirm_ok_button = self.builder.get_object('confirm_ok')
-                # self.confirm_ok_button.connect('clicked', self.on_confirmation_confirmed)
             except KeyError:
                 self.show_message('Package(s) not found', 'We can\'t find the package\nCheck again the package\'s name')
         gc.collect()
@@ -312,13 +302,27 @@ class TeaMaker:
         cache = apt.Cache()
         cache[str(self.package_entry.get_text()).replace(' ', '')].mark_install()  # replace: for security reason
         changes = cache.get_changes()
+        changes.sort()
         file_names = []
         if not os.path.exists('/tmp/tea/workspace/archives'):
             os.makedirs('/tmp/tea/workspace/archives')
+        dependencies = open('/tmp/tea/workspace/archives/depends', 'w')
+        size = open('/tmp/tea/workspace/archives/size', 'w')
+        s = 0
         for package in changes:
             if not package.marked_delete:
                 # parse ':' char to '%3a', some packages have this condition
-                file_names.append(package.name + '_' + package.candidate.version.replace(':', '%3a') + '_' + package.candidate.architecture + '.deb')
+                file_names.append(package.shortname + '_' + package.candidate.version.replace(':', '%3a') + '_' + package.candidate.architecture + '.deb')
+                # file_names.append(package.candidate.uri.split('/')[-1])
+                print(package.candidate.uri.split('/')[-1])
+                s += package.candidate.installed_size
+
+                # info file about dependencies
+                dependencies.write(package.shortname + '_' + package.candidate.version.replace(':', '%3a') + '_' + package.candidate.architecture+'\n')
+                # dependencies.write(package.candidate.uri.split('/')[-1].split('.deb')[0])
+        size.write(apt_pkg.size_to_str(s)+'B')
+        size.close()
+        dependencies.close()
         package_error = []
         done = False
 
@@ -327,75 +331,33 @@ class TeaMaker:
             return False
 
         def proceed():
-            hide_progress()
-            # self.on_confirmation_destroy()
-            hide_confirm()
-            for file in file_names:
-                copyfile('/var/cache/apt/archives/' + file.replace(':', '%3a'), '/tmp/tea/workspace/archives/' + file)
-            # compress, add description
-            tar_dest = '/tmp/tea/workspace/' + self.package_entry.get_text() + '_' + \
-                       cache[self.package_entry.get_text()].candidate.version.replace(':', '-') + '.tea'
-            tar = tarfile.open(tar_dest, 'w:gz')
-            o = open('/tmp/tea/workspace/archives/keterangan.txt', 'w', newline='\r\n')
-            now = datetime.now()
-            keterangan = 'this package contains ' + self.package_entry.get_text() + ' version ' + \
-                         cache[self.package_entry.get_text()].candidate.version + ' and it\'s dependencies\n' + \
-                         'created with status file: ' + \
-                         str(self.file_chooser.get_filename().split('/')[-1]) + '\n' + \
-                         'timestamp: ' + str(now.day) + '-' + str(now.month) + '-' + str(now.year) + \
-                         ' ' + str(now.hour) + ':' + str(now.minute) + ':' + str(now.second)
-
-            o.write(keterangan)
-            o.close()
-            o = open('/tmp/tea/workspace/archives/keterangan_tea.txt', 'w', newline='\r\n')
-            keterangan = "# File tea #\nSatu file yang memuat file .deb beserta dependensinya."+\
-                         "\n\nDibuat untuk aplikasi & profil :\n\n\t\""+ self.package_entry.get_text() +"\""+\
-                         "\n\t(versi -"+cache[self.package_entry.get_text()].candidate.version+"-)\n\n"+\
-                         str(self.file_chooser.get_filename().split('/')[-1])+"\n\nDibuat pada "+\
-                         str(now.day) + '-' + str(now.month) + '-' + str(now.year) + \
-                         ' ' + str(now.hour) + ':' + str(now.minute) + ':' + str(now.second)
-            o.write(keterangan)
-            o.close()
-            # self.progress_window.show_all()
-            for item in os.listdir('/tmp/tea/workspace/archives/'):
-                tar.add('/tmp/tea/workspace/archives/' + item, arcname=item)
-                self.progress_bar.pulse()
-            tar.close()
-            # save = Gtk.FileChooserDialog('Select a directory to save file',
-            #                              self.main_window,
-            #                              Gtk.FileChooserAction.SAVE,
-            #                              (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-            #                               Gtk.STOCK_SAVE, Gtk.ResponseType.ACCEPT))
-            global user
-            # save.set_current_folder('/home/' + user)
-            # response = save.run()
-            # if response == Gtk.ResponseType.ACCEPT:
-            filename = tar_dest.split('/')[-1]
-            num = 2
-            if os.path.exists('/home/' + user + '/' + filename):
-                while os.path.exists('/home/' + user + '/' + filename.split('.tea')[0] + '_('+str(num)+').tea'):
-                    num += 1
-                filename = filename.split('.tea')[0] + '_('+str(num)+').tea'
-            move(tar_dest, '/home/' + user + '/' + filename)
-            # save.destroy()
-            self.show_message('Done', filename + ' has been saved to your home directory')
-
-            self.progress_window.destroy()
-
-            gc.collect()
-
-        def proceed2():
             hide_confirm()
             hide_progress()
-            save = Gtk.FileChooserDialog('Select a directory to save file',
+            save = Gtk.FileChooserDialog('Save the file',
                                          self.main_window,
                                          Gtk.FileChooserAction.SAVE,
                                          (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
                                           Gtk.STOCK_SAVE, Gtk.ResponseType.OK))
+            global user
+            if user != 'root':
+                save.set_current_folder('/home/'+user)
 
+            # add filter to save dialog
+            filter = Gtk.FileFilter()
+            filter.set_name('.tea')
+            filter.add_pattern('*.tea')
+            save.add_filter(filter)
+            save.set_filter(filter)
+
+            # run the save dialog
             response = save.run()
             tar_dest = save.get_filename()
+
+            # check filename is already exist, then show confirmation to rewrite
             if response == Gtk.ResponseType.OK:
+                # if the filename not ends with '.tea', add it.
+                if not tar_dest[-4:] == '.tea':
+                    tar_dest += '.tea'
                 allow = False
                 print(save.get_filename())
                 if os.path.exists(tar_dest):
@@ -404,8 +366,12 @@ class TeaMaker:
                                               Gtk.STOCK_OK, Gtk.ResponseType.OK))
                     box = rewrite_ask.get_content_area()
                     overwrite_warning = Gtk.Label(label="The file \""+ tar_dest.split('/')[-1] +"\" exist. Do you want to overwrite it?")
+                    overwrite_warning.set_margin_top(18)
+                    overwrite_warning.set_margin_right(18)
+                    overwrite_warning.set_margin_left(18)
+                    overwrite_warning.set_margin_bottom(6)
                     box.add(overwrite_warning)
-
+                    rewrite_ask.show_all()
                     resp = rewrite_ask.run()
                     if resp == Gtk.ResponseType.OK:
                         allow = True
@@ -432,7 +398,8 @@ class TeaMaker:
                         while Gtk.events_pending():
                             Gtk.main_iteration()
                     self.hide_progress_window()
-                    self.show_message('Done', None)
+                    self.show_message('Done',
+                                      tar_dest.split('/')[-1] + ' successfully saved')
                     o = open('/tmp/tea/workspace/archives/keterangan.txt', 'w', newline='\r\n')
                     now = datetime.now()
                     keterangan = 'this package contains ' + self.package_entry.get_text() + ' version ' + \
@@ -456,6 +423,9 @@ class TeaMaker:
                     o.write(keterangan)
                     o.close()
                     tar.add('/tmp/tea/workspace/archives/keterangan_tea.txt', arcname='keterangan_tea.txt')
+
+                    # tar.add('/tmp/tea/workspace/archives/depends', arcname='depends')
+                    tar.add('/tmp/tea/workspace/archives/size', arcname='size')
                     tar.close()
                 else:
                     pass
@@ -466,7 +436,6 @@ class TeaMaker:
             def __init__(self):
                 AcquireProgress.__init__(self)
                 self.keep_the_download = True
-                # self.outer.progress_window.show_all()
 
             def pulse(self, owner):
                 AcquireProgress.pulse(self, owner)
@@ -485,25 +454,23 @@ class TeaMaker:
             def stop_download(self, *args):
                 self.keep_the_download = False
 
-
             def stop(self):
-                # label.set_text('Download Stopped')
-                # report = 'Failed while downloading:\n'
-                # for i in package_error:
-                #     report += i+'\n'
-                # label.set_text(report)
                 global done
                 # =======
                 for pkg in changes:
-                    if not pkg.name+'_'+pkg.candidate.version.replace(':', '%3a')+'_'+pkg.candidate.architecture+'.deb' in os.listdir('/var/cache/apt/archives/'):
-                        package_error.append(pkg.name+'_'+pkg.candidate.version.replace(':', '%3a')+'_'+pkg.candidate.architecture+'.deb')
+                    if not pkg.shortname+'_'+pkg.candidate.version.replace(':', '%3a')+'_'+pkg.candidate.architecture+'.deb' in os.listdir('/var/cache/apt/archives/'):
+                        package_error.append(pkg.shortname+'_'+pkg.candidate.version.replace(':', '%3a')+'_'+pkg.candidate.architecture+'.deb')
+                # =======
+                # for pkg in changes:
+                #     if not pkg.candidate.uri.split('/')[-1].replace(':', '%3a') in os.listdir('/var/cache/apt/archives/'):
+                #         package_error.append(pkg.candidate.uri.split('/')[-1])
                 # =======
                 if package_error:
                     done = False
                     print("done false")
 
                 else:
-                    GLib.idle_add(proceed2)
+                    GLib.idle_add(proceed)
 
                 print("stopped")
 
@@ -527,49 +494,42 @@ class TeaMaker:
                     cache.fetch_archives(self.fetch_progress)
                 except apt.cache.FetchFailedException:
                     GLib.idle_add(hide_progress)
-                    # event = threading.Event()
-                    # GLib.idle_add(self.outer.show_message,
-                    #               "Download Error",
-                    #               "Couldn't download packages\nCheck your internet connection")
-                    # event.wait()
+
                     def message():
                         message_dialog = Gtk.MessageDialog(None,
-                                                    Gtk.DialogFlags.MODAL,
-                                                    Gtk.MessageType.INFO,
-                                                    Gtk.ButtonsType.OK, "Error")
+                                                           Gtk.DialogFlags.MODAL,
+                                                           Gtk.MessageType.INFO,
+                                                           Gtk.ButtonsType.OK, "Download Error")
 
-                        message_dialog.format_secondary_text("Error 2")
+                        message_dialog.format_secondary_text("Check your internet connection")
                         message_dialog.run()
                         message_dialog.destroy()
-                    # event = threading.Event()
                     GLib.idle_add(message)
-                    # event.wait()
 
             def __del__(self):
                 print("thread deleted")
                 hide_progress()
 
         if cache.required_download != 0:
+            print('butuh download '+str(cache.required_download))
             progress = Fetch()
             apt_thread = Thread(progress)
             apt_thread.start()
             progress_cancel.connect('clicked', progress.stop_download)
         else:
-            proceed2()
+            proceed()
         gc.collect()
 
     def hide_progress_window(self, *args):
-        # try:
-        #     self.progress_window.remove(self.progress_window.get_children()[0])
-        # except IndexError:
-        #     pass
-
         self.progress_window.hide()
         return True
 
 
 if __name__ == "__main__":
-    user = os.path.expanduser('~').split('/')[-1]
+    try:
+        user = sys.argv[1]
+    except IndexError:
+        pass
     print('user: ' + user)
     GObject.threads_init()
     if os.getuid() is 0:

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<policyconfig>
+  <vendor>TeaLinuxOS.org</vendor>
+  <vendor_url>http://www.tealinuxos.org/</vendor_url>
+  <icon_name>tea-package-maker</icon_name>
+
+  <action id="org.tealinuxos.packagemaker">
+    <description>create offline installer from deb packages and it's dependencies</description>
+    <message>Privileges are required to access APT system</message>
+    <defaults>
+      <allow_any>yes</allow_any>
+      <allow_inactive>yes</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/tea-maker-gtk</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">TRUE</annotate>
+  </action>
+</policyconfig>

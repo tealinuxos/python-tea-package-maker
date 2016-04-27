@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Tea Package Maker v2
+GenericName=Tea Package Maker v2
+Comment=Create offline package installer
+Exec=tea-maker-gtk-pkexec
+Icon=/usr/share/icons/teamaker.svg
+Terminal=false
+Type=Application
+Categories=Tea;PackageManager;GTK;System;Settings;Utility;
