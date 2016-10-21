@@ -1,0 +1,7 @@
+tea-maker-gtk (0.9-12xenial) xenial; urgency=medium
+
+  * enable package search suggestion
+  * improve search suggestion load time on xenial
+  * filter package search suggestion only for current machine architecture
+
+ -- nurul irfan <irfanlongstride@gmail.com>  Wed, 19 Oct 2016 16:30:00 +0700

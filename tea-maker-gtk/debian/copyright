@@ -1,0 +1,7 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: tea-package-maker
+Upstream-Contact: Nurul Irfan, <irfanlongstride@gmail.com>
+
+Files: *
+Copyright: 2016, Nurul Irfan, <irfanlongstride@gmail.com>
+License: GPL-3

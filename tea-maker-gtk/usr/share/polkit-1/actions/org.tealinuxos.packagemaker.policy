@@ -15,7 +15,7 @@
       <allow_inactive>yes</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/tea-maker-gtk</annotate>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/share/tea-package/maker/tea-maker-gtk</annotate>
     <annotate key="org.freedesktop.policykit.exec.allow_gui">TRUE</annotate>
   </action>
 </policyconfig>

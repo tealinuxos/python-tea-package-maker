@@ -1,0 +1,18 @@
+Source: tea-maker-gtk
+Section: python
+Priority: optional
+Build-Depends: python3-apt (>=0.3.9), python-apt (>=0.3.9), python3 (>=3.4), debhelper (>=9)
+Standards-Version: 3.9.2
+Maintainer: nurul irfan <irfanlongstride@gmail.com>
+
+
+Package: tea-maker-gtk
+Section: python
+Version: 0.9-12xenial
+Priority: optional
+Architecture: all
+Depends: python3-apt (>=0.3.9), python-apt (>=0.3.9), python3 (>=3.4)
+Maintainer: nurul irfan <irfanlongstride@gmail.com>
+Description: create offline ubuntu package installer
+ this software creates .tea package that can be installed using Tea Installer
+

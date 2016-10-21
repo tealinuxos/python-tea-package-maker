@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+import gi
+gi.require_version('Gtk', '3.0')
 from shutil import copyfile, rmtree
 from apt.progress.base import AcquireProgress
 from gi.repository import Gtk, GLib, GObject
@@ -10,6 +12,7 @@ import os, sys
 import tarfile
 import gc
 from datetime import datetime
+from platform import architecture as arch
 
 ui_file = '/usr/share/tea-package/maker/tea-maker.ui'
 # ui_file = 'tea-maker.ui'
@@ -39,7 +42,7 @@ class TeaMaker:
         self.file_chooser = self.builder.get_object('file_chooser')
         self.file_chooser.set_current_folder('/var/lib/dpkg/')
 
-        # self.start()
+        self.start()
 
         self.progress_window = Gtk.Window(title='Downloading')
         self.progress_window.set_size_request(400, 0)
@@ -72,9 +75,9 @@ class TeaMaker:
 
         self.progress_window.connect('delete-event', self.hide_progress_window)
 
-    # prepare the auto completion
+    #  prepare the auto completion
     def start(self):
-        c = apt.Cache()
+        c = apt.Cache().keys()
         list = Gtk.ListStore(str)
         self.package_entry.set_sensitive(False)
         self.package_entry.set_text('Loading...')
@@ -82,10 +85,18 @@ class TeaMaker:
         self.info.set_sensitive(False)
         self.help.set_sensitive(False)
         self.file_chooser.set_sensitive(False)
+        exclude = ''
+        if arch()[0]=='32bit':
+            print('arch 32bit')
+            exclude = ':amd64'
+        else:
+            print(arch()[0])
+            exclude = ':i386'
         i = 0
         for item in c:
             i += 1
-            list.append([item.name])
+            if not item.endswith(exclude):
+                list.append([item])
             self.package_entry.set_progress_fraction(i/len(c))
             while Gtk.events_pending():
                 Gtk.main_iteration()
@@ -222,43 +233,82 @@ class TeaMaker:
     def on_about_clicked(self, *args):
         about = Gtk.AboutDialog('About Tea Package Maker', self.main_window)
         about.set_program_name('Tea Maker')
-        about.set_logo_icon_name('teamaker')
-        about.set_version('1.0')
+        about.set_logo_icon_name('tea-maker-gtk')
+        about.set_version('0.9')
         about.set_comments('Make single file package installer for your friend\'s or your own OS\n'
                            'Currently developed for TeaLinuxOS')
         about.set_license_type(Gtk.License.GPL_3_0)
         about.set_authors(['Nurul Irfan'])
+        about.set_artists(['Arya Kusuma'])
         about.run()
         about.destroy()
         gc.collect()
 
     def on_help_clicked(self, *args):
-        help = Gtk.Dialog('FAQ', self.main_window, 0, (Gtk.STOCK_OK, Gtk.ResponseType.OK))
-        help.set_size_request(400, 400)
-        help.set_default_size(500, 400)
-        content = help.get_content_area()
-        label = Gtk.Label(margin_top=18,
-                          margin_bottom=18,
-                          margin_left=18,
-                          margin_right=18)
-        label.set_markup('<b>What is "Status File?"</b>\n'
-                         'Status file is a file that contains information about installed packages. '
-                         'It can be found in <i>/var/lib/dpkg/status</i>')
-        label.set_line_wrap_mode(Gtk.WrapMode.WORD)
-        label.set_line_wrap(True)
-        label.set_max_width_chars(-1)
-        label.set_width_chars(-1)
-        label.set_line_wrap_mode(Gtk.WrapMode.WORD)
+        print('help activated')
+#         help_text = """<b>what is Tea Maker?</b>
+# Tea Maker is a software that existed for creating tea packages which contains a software and it's dependencies. more info available on <a href="http://tealinuxos.org/projects/tea-maker">website</a>
+#
+# <b>What is status file?</b>
+# Status file is a file that contains information about installed package and it's dependencies in a specific computer. It can be found in <em>/var/lib/dpkg</em>
+#
+# <b>How can I make tea packages?</b>
+# first, you must select a 'status' file. this status file must be obtained from target computer. for example, if you want to create a tea package for your friend's computer you must select the status file from your friend's computer. Then type a package name, then click Ok.
+#
+# <b>How can I install a .tea file?</b>
+# You can install it with Tea Installer
+#
+# <b>Can I install Tea Installer and Tea Maker in another distro?</b>
+# As long as your Linux distro is ubuntu derivative, you can install them from ppa, or install them from source. more info available on <a href="http://tealinuxos.org/projects/tea-maker">website</a>
+# """
+        help_text = """What is Tea Maker?
+Tea Maker is a software that existed for creating tea packages which contains a software and it's dependencies. more info available on http://tealinuxos.org/projects/tea-maker
+
+What is status file?
+Status file is a file that contains information about installed package and it's dependencies in a specific computer. It can be found in /var/lib/dpkg
+
+How can I make tea packages?
+first, you must select a 'status' file. this status file must be obtained from target computer. for example, if you want to create a tea package for your friend's computer you must select the status file from your friend's computer. Then type a package name, then click Ok.
+
+How can I install a .tea file?
+You can install it with Tea Installer
+
+Can I install Tea Installer and Tea Maker in another distro?
+As long as your Linux distro is ubuntu derivative, you can install them from ppa, or install them from source. more info available on http://tealinuxos.org/projects/tea-maker
+"""
+
+        help_window = Gtk.Window(title='FAQ')
+        help_window.set_transient_for(self.main_window)
+        help_window.set_modal(self.main_window)
+        help_window.set_skip_taskbar_hint(True)
+        help_window.set_size_request(400, 300)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.set_margin_top(12)
+        box.set_margin_bottom(12)
+        box.set_margin_left(12)
+        box.set_margin_right(12)
         scroll = Gtk.ScrolledWindow()
-        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        view = Gtk.Viewport()
-        view.add(label)
-        scroll.add(view)
-        content.add(scroll)
-        help.show_all()
-        help.run()
-        help.destroy()
-        gc.collect()
+        # scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        viewport = Gtk.Viewport()
+        scroll.add(viewport)
+        label = Gtk.Label()
+        label.set_line_wrap(True)
+        label.set_line_wrap_mode(Gtk.WrapMode.WORD)
+        # label.set_max_width_chars(0)
+        label.set_halign(Gtk.Align.START)
+        label.set_valign(Gtk.Align.START)
+        label.set_text(help_text)
+        viewport.add(label)
+        box.pack_start(scroll, 1, 1, 6)
+        button = Gtk.Button(stock=Gtk.STOCK_CLOSE)
+
+        def close_help(*args):
+            help_window.hide()
+
+        button.connect('clicked', close_help)
+        box.pack_start(button, 0, 0, 0)
+        help_window.add(box)
+        help_window.show_all()
 
     def on_confirmation_confirmed(self, conf, *args):
         # self.progress_window.show_all()
@@ -529,6 +579,8 @@ if __name__ == "__main__":
     try:
         user = sys.argv[1]
     except IndexError:
+        print('\nplease use "tea-maker-gtk-pkexec" instead\n')
+        sys.exit(0)
         pass
     print('user: ' + user)
     GObject.threads_init()
