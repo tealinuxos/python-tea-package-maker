@@ -39,8 +39,8 @@ class TeaMaker:
         self.help = self.builder.get_object('help')
         self.help.connect('clicked', self.on_help_clicked)
 
-        self.file_chooser = self.builder.get_object('file_chooser')
-        self.file_chooser.set_current_folder('/var/lib/dpkg/')
+##        self.file_chooser = self.builder.get_object('file_chooser')
+##        self.file_chooser.set_current_folder('/var/lib/dpkg/')
 
         self.start()
 
@@ -84,7 +84,7 @@ class TeaMaker:
         self.ok.set_sensitive(False)
         self.info.set_sensitive(False)
         self.help.set_sensitive(False)
-        self.file_chooser.set_sensitive(False)
+##        self.file_chooser.set_sensitive(False)
         exclude = ''
         if arch()[0]=='32bit':
             print('arch 32bit')
@@ -111,7 +111,7 @@ class TeaMaker:
         self.ok.set_sensitive(True)
         self.info.set_sensitive(True)
         self.help.set_sensitive(True)
-        self.file_chooser.set_sensitive(True)
+##        self.file_chooser.set_sensitive(True)
 
     # action when user select an item from auto completion
     def on_match_selected(self, completion, treemodel, treeiter):
@@ -121,19 +121,19 @@ class TeaMaker:
         pkg_name = self.package_entry.get_text()
         if pkg_name == '':
             self.show_message('Empty package name', 'Enter a valid package name')
-        elif self.file_chooser.get_filename() is None:
-            self.show_message('Empty Status File', 'Choose a status file')
+##      elif self.file_chooser.get_filename() is None:
+##          self.show_message('Empty Status File', 'Choose a status file')
         else:
-            status_file = self.file_chooser.get_filename()
-            print(status_file)
+            status_file = '/usr/share/tea-package/maker/status/' + arch()[0]
+            print('using ' + status_file)
             print(pkg_name)
-            apt_pkg.config.set("Dir::State::status", str(status_file))
+            apt_pkg.config.set("Dir::State::status", status_file)
             cache = apt.Cache()
             try:
                 print(cache[pkg_name].is_installed)
                 if cache[pkg_name].is_installed:
                     self.show_message('Package already installed',
-                                      pkg_name+' is already installed in your status file')
+                                      pkg_name+' is already installed in TeaLinuxOS 8')
                 else:
                     cache[pkg_name].mark_install()
                     confirm_list = Gtk.ListStore(str, str)
@@ -263,12 +263,6 @@ class TeaMaker:
 # """
         help_text = """What is Tea Maker?
 Tea Maker is a software that existed for creating tea packages which contains a software and it's dependencies. more info available on http://tealinuxos.org/projects/tea-maker
-
-What is status file?
-Status file is a file that contains information about installed package and it's dependencies in a specific computer. It can be found in /var/lib/dpkg
-
-How can I make tea packages?
-first, you must select a 'status' file. this status file must be obtained from target computer. for example, if you want to create a tea package for your friend's computer you must select the status file from your friend's computer. Then type a package name, then click Ok.
 
 How can I install a .tea file?
 You can install it with Tea Installer
