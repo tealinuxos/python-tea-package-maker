@@ -14,6 +14,8 @@ import gc
 from datetime import datetime
 from platform import architecture as arch
 
+status_file = '/usr/share/tea-package/maker/status/' + arch()[0]
+
 ui_file = '/usr/share/tea-package/maker/tea-maker.ui'
 # ui_file = 'tea-maker.ui'
 
@@ -77,6 +79,10 @@ class TeaMaker:
 
     #  prepare the auto completion
     def start(self):
+        if os.path.exists('/tmp/'+arch()[0]):
+            os.remove('/tmp/'+arch()[0])
+        copyfile(status_file, '/tmp/' + arch()[0])
+        apt_pkg.config.set("Dir::State::status", '/tmp/' + arch()[0])
         c = apt.Cache().keys()
         list = Gtk.ListStore(str)
         self.package_entry.set_sensitive(False)
@@ -124,10 +130,8 @@ class TeaMaker:
 ##      elif self.file_chooser.get_filename() is None:
 ##          self.show_message('Empty Status File', 'Choose a status file')
         else:
-            status_file = '/usr/share/tea-package/maker/status/' + arch()[0]
             print('using ' + status_file)
             print(pkg_name)
-            apt_pkg.config.set("Dir::State::status", status_file)
             cache = apt.Cache()
             try:
                 print(cache[pkg_name].is_installed)
@@ -341,8 +345,8 @@ As long as your Linux distro is ubuntu derivative, you can install them from ppa
         if os.path.exists('/tmp/tea/'):
             rmtree('/tmp/tea/')
 
-        copyfile(self.file_chooser.get_filename(), '/tmp/' + str(self.file_chooser.get_filename()).split('/')[-1])
-        apt_pkg.config.set("Dir::State::status", '/tmp/' + str(self.file_chooser.get_filename().split('/')[-1]))
+#       copyfile(status_file, '/tmp/' + arch()[0])
+        apt_pkg.config.set("Dir::State::status", '/tmp/' + arch()[0])
         cache = apt.Cache()
         cache[str(self.package_entry.get_text()).replace(' ', '')].mark_install()  # replace: for security reason
         changes = cache.get_changes()
@@ -449,7 +453,7 @@ As long as your Linux distro is ubuntu derivative, you can install them from ppa
                     keterangan = 'this package contains ' + self.package_entry.get_text() + ' version ' + \
                                  cache[self.package_entry.get_text()].candidate.version + ' and it\'s dependencies\n' + \
                                  'created with status file: ' + \
-                                 str(self.file_chooser.get_filename().split('/')[-1]) + '\n' + \
+                                 str(arch()[0]) + '\n' + \
                                  'timestamp: ' + str(now.day) + '-' + str(now.month) + '-' + str(now.year) + \
                                  ' ' + str(now.hour) + ':' + str(now.minute) + ':' + str(now.second)
 
@@ -461,7 +465,7 @@ As long as your Linux distro is ubuntu derivative, you can install them from ppa
                     keterangan = "# File tea #\nSatu file yang memuat file .deb beserta dependensinya."+\
                                  "\n\nDibuat untuk aplikasi & profil :\n\n\t\""+ self.package_entry.get_text() +"\""+\
                                  "\n\t(versi -"+cache[self.package_entry.get_text()].candidate.version+"-)\n\n"+\
-                                 str(self.file_chooser.get_filename().split('/')[-1])+"\n\nDibuat pada "+\
+                                 str(arch()[0])+"\n\nDibuat pada "+\
                                  str(now.day) + '-' + str(now.month) + '-' + str(now.year) + \
                                  ' ' + str(now.hour) + ':' + str(now.minute) + ':' + str(now.second)
                     o.write(keterangan)
