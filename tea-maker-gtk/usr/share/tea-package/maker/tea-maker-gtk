@@ -137,7 +137,7 @@ class TeaMaker:
                 print(cache[pkg_name].is_installed)
                 if cache[pkg_name].is_installed:
                     self.show_message('Package already installed',
-                                      pkg_name+' is already installed in TeaLinuxOS 8')
+                                      pkg_name+' is already installed in your TeaLinuxOS')
                 else:
                     cache[pkg_name].mark_install()
                     confirm_list = Gtk.ListStore(str, str)
