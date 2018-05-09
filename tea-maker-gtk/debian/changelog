@@ -1,8 +1,8 @@
-tea-maker-gtk (0.9-17xenial) xenial; urgency=medium
+tea-maker-gtk (0.10.0-1) bionic; urgency=medium
 
   * enable package search suggestion
   * improve search suggestion load time on xenial
   * filter package search suggestion only for current machine architecture
   * automate status file picking
 
- -- nurul irfan <irfanlongstride@gmail.com>  Sat, 22 Oct 2016 20:51:00 +0700
+ -- nurul irfan <irfanlongstride@gmail.com>  Tue, 08 May 2018 23:48:00 +0700
