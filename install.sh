@@ -13,7 +13,7 @@ echo ""
 echo ""
 
 echo "deploying"
-cp $USR $USR_ROOT
+cp -r $USR $USR_ROOT
 
 echo ""
 echo ""
