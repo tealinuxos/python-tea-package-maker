@@ -7,7 +7,7 @@ echo ""
 
 echo "defining var for execute"
 USR=./tea-maker-gtk/usr
-USR_ROOT=/usr
+USR_ROOT=/
 
 echo ""
 echo ""
