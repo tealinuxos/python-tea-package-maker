@@ -14,5 +14,4 @@ Architecture: all
 Depends: python3-apt (>=0.3.9), python-apt (>=0.3.9), python3 (>=3.4)
 Maintainer: nurul irfan <irfanlongstride@gmail.com>
 Description: create offline ubuntu package installer
- this software creates .tea package that can be installed using Tea Installer
-
+  this software creates .tea package that can be installed using Tea Installer
